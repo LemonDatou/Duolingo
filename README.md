@@ -12,7 +12,7 @@ A collection of scripts for automating Duolingo tasks, including completing less
 
 > **⚠️ Disclaimer**
 > 
-> This project contains scripts that use a third-party API (`api.duolingopro.net`) and send your personal account authentication (JWT token) to its server. The functionality and security of this third-party service are not related to or guaranteed by this project. **Use at your own risk.**
+> Please note that the XP farming scripts (`duolingo-xp.py` and `duolingo-xp.js`) utilize a third-party API (`api.duolingopro.net`) and will send your personal account authentication (JWT token) to their server. **All other scripts (such as the auto-lesson bot `duolingo.py`) run entirely locally on your machine and do not send data to any third party.** The functionality and security of the third-party XP service are not related to or guaranteed by this project. Use the XP farming scripts at your own risk.
 
 ### 📂 File Descriptions
 
@@ -32,7 +32,8 @@ A Python script for farming XP points. It reads the JWT token saved by `duolingo
 A local Flask web server that provides an API to trigger the `duolingo.py` and `duolingo-xp.py` scripts. It features two endpoints: `/run-lesson` to start the lesson bot and `/run-xp` to start the XP farming script. A lock mechanism ensures that only one task can run at a time.
 
 #### 🛠️ JavaScript Utilities
-* **`duolingo-helper.js`**: A comprehensive JavaScript script designed to be injected into a Duolingo lesson page. It creates a UI panel with start/stop buttons for the auto-solving process. It extracts correct answers from the page's React components and automatically performs the necessary actions (clicking, typing) to solve the challenges. The content of this file is embedded within `duolingo.py`.![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282")
+* **`duolingo-helper.js`**: A comprehensive JavaScript script designed to be injected into a Duolingo lesson page. It creates a UI panel with start/stop buttons for the auto-solving process. It extracts correct answers from the page's React components and automatically performs the necessary actions (clicking, typing) to solve the challenges. The content of this file is embedded within `duolingo.py`.
+![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282)
 * **`duolingo-xp.js`**: A JavaScript script intended to be run in the browser's developer console. It extracts the JWT token from the browser's cookies and makes a POST request to the `api.duolingopro.net` service to request XP, similar to the `duolingo-xp.py` script. It serves as a manual alternative.
 * **`show-answer.js`**: A bookmarklet-style JavaScript snippet. When executed on a Duolingo challenge page, it extracts the correct answer from the React component data and displays it prominently in an overlay on the screen. It is a tool for manually revealing the answer to a single question.
 
@@ -46,7 +47,7 @@ A local Flask web server that provides an API to trigger the `duolingo.py` and `
 
 > **⚠️ 免责声明**
 > 
-> 本项目包含调用第三方 API (`api.duolingopro.net`) 的脚本，这会将您的个人账户鉴权信息（JWT 令牌）发送到其服务器。该第三方服务的功能和安全性与本项目无关，本项目不提供任何保证。**请自行承担使用风险。**
+> 请注意，**仅刷XP脚本（`duolingo-xp.py` 和 `duolingo-xp.js`）**调用了第三方 API (`api.duolingopro.net`)，这会将您的个人账户鉴权信息（JWT 令牌）发送到其服务器。**其他所有脚本（如自动刷课脚本 `duolingo.py`）均完全运行在您的本地环境中，不会向任何第三方发送数据。** 该第三方刷XP服务的功能和安全性与本项目无关，本项目不提供任何保证。请自行承担使用刷XP脚本的风险。
 
 ### 📂 文件说明
 
@@ -59,13 +60,14 @@ A local Flask web server that provides an API to trigger the `duolingo.py` and `
 2. **上传至服务器:** 将生成的 `duolingo_state.json` 文件上传至服务器，与 `duolingo.py` 放在同一目录下。
 3. **自动注入:** 脚本运行时会自动检测该文件，将 Cookie 和 LocalStorage 注入持久化目录中，完美绕过登录验证。
 
-#### 🚀 `duolingo-xp.py` (自动刷分)
+#### 🚀 `duolingo-xp.py` (自动刷XP)
 一个用于刷经验值（XP）的Python脚本。它会读取由 `duolingo.py` 保存的JWT凭证，然后调用一个第三方API (`api.duolingopro.net`) 来为账户增加指定数量的XP。
 
 #### 🌐 `api_server.py` (本地服务中心)
-一个本地 Flask Web 服务器。它提供API接口来触发 `duolingo.py`（刷课）和 `duolingo-xp.py`（刷分）脚本。它包含两个接口：`/run-lesson` 用于开始刷课，`/run-xp` 用于开始刷XP。通过锁机制确保同一时间只有一个任务在执行，保护服务器资源。
+一个本地 Flask Web 服务器。它提供API接口来触发 `duolingo.py`（刷课）和 `duolingo-xp.py`（刷XP）脚本。它包含两个接口：`/run-lesson` 用于开始刷课，`/run-xp` 用于开始刷XP。通过锁机制确保同一时间只有一个任务在执行，保护服务器资源。
 
 #### 🛠️ 浏览器脚本工具
-* **`duolingo-helper.js`**: 一个功能全面的JS脚本，设计用于注入到多邻国的答题页面。它会创建一个包含“开始/停止”按钮的控制面板。它通过从页面的React组件中提取正确答案，自动完成点击、输入等操作来解题。此文件的内容被直接嵌入在 `duolingo.py` 脚本中。![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282")
-* **`duolingo-xp.js`**: 一个用于在浏览器开发者控制台手动执行的JS脚本。它从浏览器的Cookie中提取JWT凭证，然后向 `api.duolingopro.net` 服务发送请求来增加XP，功能与 `duolingo-xp.py` 脚本类似。可作为手动刷分的备用方案。
+* **`duolingo-helper.js`**: 一个功能全面的JS脚本，设计用于注入到多邻国的答题页面。它会创建一个包含“开始/停止”按钮的控制面板。它通过从页面的React组件中提取正确答案，自动完成点击、输入等操作来解题。此文件的内容被直接嵌入在 `duolingo.py` 中，也可单独使用。
+![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282)
+* **`duolingo-xp.js`**: 一个用于在浏览器开发者控制台手动执行的JS脚本。它从浏览器的Cookie中提取JWT凭证，然后向 `api.duolingopro.net` 服务发送请求来增加XP，功能与 `duolingo-xp.py` 脚本类似。可作为手动刷XP的备用方案。
 * **`show-answer.js`**: 一个书签脚本（bookmarklet）。在多邻国的答题页面运行时，它会从React组件中提取当前题目的正确答案，并将其显示在一个屏幕中央的浮层上。这是一个用于手动显示单题答案的工具。
