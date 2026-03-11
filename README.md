@@ -1,43 +1,8 @@
 # 🦉 Duolingo Automation Scripts / 多邻国自动化脚本合集
 
 🌍 **Choose your language / 选择语言:**
-* [English Version](#english-version)
 * [中文版本](#中文版本)
-
----
-
-## <a id="english-version"></a> English Version
-
-A collection of scripts for automating Duolingo tasks, including completing lessons and farming XP.
-
-> **⚠️ Disclaimer**
-> 
-> Please note that the XP farming scripts (`duolingo-xp.py` and `duolingo-xp.js`) utilize a third-party API (`api.duolingopro.net`) and will send your personal account authentication (JWT token) to their server. **All other scripts (such as the auto-lesson bot `duolingo.py`) run entirely locally on your machine and do not send data to any third party.** The functionality and security of the third-party XP service are not related to or guaranteed by this project. Use the XP farming scripts at your own risk.
-
-### 📂 File Descriptions
-
-#### 🤖 `duolingo.py` (Auto-Lesson)
-The main script for automatically completing Duolingo lessons. It uses Playwright to control a headless browser, logs in, navigates to a specific lesson, and injects a JavaScript payload to solve challenges automatically. It also extracts the user's JWT token for other scripts to use and can be configured to run for a specific number of loops.
-
-**🔑 How to use `duolingo_state.json` (Required for Headless Server Deployment)**
-If you are running this script on a headless server (e.g., Linux without a GUI), you cannot log in manually. You must use a state file to bypass the login phase:
-1. **Local Extraction:** On your local machine (Windows/Mac), run a Playwright script with `headless=False` to log into Duolingo. Save the browser context state to a file named `duolingo_state.json`.
-2. **Upload:** Place `duolingo_state.json` in the same directory as `duolingo.py` on your server.
-3. **Auto-Injection:** When `duolingo.py` runs, it will detect this file, automatically inject the Cookies and LocalStorage, and bypass the login verification seamlessly.
-
-#### 🚀 `duolingo-xp.py` (XP Farmer)
-A Python script for farming XP points. It reads the JWT token saved by `duolingo.py` and sends a request to a third-party API (`api.duolingopro.net`) to add a specified amount of XP to the account.
-
-#### 🌐 `api_server.py` (Local API)
-A local Flask web server that provides an API to trigger the `duolingo.py` and `duolingo-xp.py` scripts. It features two endpoints: `/run-lesson` to start the lesson bot and `/run-xp` to start the XP farming script. A lock mechanism ensures that only one task can run at a time.
-
-#### 🛠️ JavaScript Utilities
-* **`duolingo-helper.js`**: A comprehensive JavaScript script designed to be injected into a Duolingo lesson page. It creates a UI panel with start/stop buttons for the auto-solving process. It extracts correct answers from the page's React components and automatically performs the necessary actions (clicking, typing) to solve the challenges. The content of this file is embedded within `duolingo.py`.
-![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282)
-* **`duolingo-xp.js`**: A JavaScript script intended to be run in the browser's developer console. It extracts the JWT token from the browser's cookies and makes a POST request to the `api.duolingopro.net` service to request XP, similar to the `duolingo-xp.py` script. It serves as a manual alternative.
-* **`show-answer.js`**: A bookmarklet-style JavaScript snippet. When executed on a Duolingo challenge page, it extracts the correct answer from the React component data and displays it prominently in an overlay on the screen. It is a tool for manually revealing the answer to a single question.
-
-<br>
+* [English Version](#english-version)
 
 ---
 
@@ -45,29 +10,101 @@ A local Flask web server that provides an API to trigger the `duolingo.py` and `
 
 一组用于多邻国（Duolingo）的自动化脚本，主要功能包括自动完成课程和刷经验值（XP）。
 
+### 🚀 快速使用
+* **自动答题**：如果需要全自动完成当前单元，请使用 `duolingo-helper.js`。
+* **辅助答题**：如果只需要在答题时显示当前问题的答案，请使用 `show-answer.js`。
+* **即时 XP**：如果需要立刻获得大量 XP，请使用 `duolingo-xp.js`。
+* **远程部署**：如果需要部署到服务器运行，请使用 `server` 目录中的 Python 脚本。
+
 > **⚠️ 免责声明**
 > 
-> 请注意，**仅刷XP脚本（`duolingo-xp.py` 和 `duolingo-xp.js`）**调用了第三方 API (`api.duolingopro.net`)，这会将您的个人账户鉴权信息（JWT 令牌）发送到其服务器。**其他所有脚本（如自动刷课脚本 `duolingo.py`）均完全运行在您的本地环境中，不会向任何第三方发送数据。** 该第三方刷XP服务的功能和安全性与本项目无关，本项目不提供任何保证。请自行承担使用刷XP脚本的风险。
+> 请注意，**刷 XP 脚本（`duolingo-xp.py` 和 `duolingo-xp.js`）**调用了第三方 API (`api.duolingopro.net`)，这会将您的个人账户鉴权信息（JWT 令牌）发送到其服务器。该第三方服务的安全性与本项目无关，请自行承担风险。**其他脚本均运行在本地环境中，不会向任何第三方发送数据。**
 
-### 📂 文件说明
+---
+
+### 🛠️ 浏览器脚本工具 (JS Utilities)
+这些脚本可以直接在浏览器中使用，无需安装 Python 环境。
+
+#### **如何使用：**
+1. **控制台法**：在多邻国答题页面按下 `F12` 或 `Ctrl+Shift+I` 打开开发者工具，切换到 `Console` 选项卡，粘贴代码并回车。
+2. **书签法 (仅限 `show-answer.js`)**：新建浏览器书签，在 URL 处粘贴以 `javascript:` 开头的脚本代码。点击书签即可运行。
+
+* **`duolingo-helper.js`**: 全功能自动解题脚本。注入后会创建一个包含“开始/停止”按钮的控制面板。它能从 React 组件中提取正确答案，自动完成点击、输入等操作。
+<img src="https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282" alt="helper-ui" width="600">
+
+* **`show-answer.js`**: 辅助答题脚本。运行时会显示当前题目的正确答案，并将其显示在屏幕中央的浮层上，适合辅助手动答题。
+
+* **`duolingo-xp.js`**: 一键获取 XP 脚本。它从 Cookie 中提取 JWT 凭证并发送至第三方服务，立刻获得大量 XP（默认1000），风险自行承担。
+
+---
+
+### 🤖 服务端 Python 脚本 (Server Scripts)
+适用于需要自动化循环运行或部署在 Linux 服务器上的场景。
 
 #### 🤖 `duolingo.py` (自动刷课)
-这是核心的自动刷课脚本。它通过 Playwright 库控制一个无头浏览器，自动登录多邻国、进入指定课程，并注入JS代码以全自动答题。该脚本还会提取并保存账户的JWT凭证，供其他脚本使用。可以配置循环运行的次数。
+通过 Playwright 控制无头浏览器，全自动登录并刷课。脚本会提取并保存账户的 JWT 凭证供刷分脚本使用。
 
-**🔑 如何使用 `duolingo_state.json` (无头服务器部署必备)**
-如果您在无头服务器（如无图形界面的 Linux）上运行此脚本，由于无法手动登录，您必须通过凭证文件注入登录状态：
-1. **本地提取:** 在本地电脑上，以有界面的方式运行 Playwright 登录多邻国，并将浏览器上下文状态导出为 `duolingo_state.json`。
-2. **上传至服务器:** 将生成的 `duolingo_state.json` 文件上传至服务器，与 `duolingo.py` 放在同一目录下。
-3. **自动注入:** 脚本运行时会自动检测该文件，将 Cookie 和 LocalStorage 注入持久化目录中，完美绕过登录验证。
+**🔑 如何使用 `duolingo_state.json` (无头服务器必备)**
+1. **本地提取**: 在有界面的本地电脑运行 Playwright 登录，保存上下文状态为 `duolingo_state.json`。
+2. **上传**: 将该文件上传至服务器与 `duolingo.py` 同级目录。
+3. **自动注入**: 脚本将自动检测并注入 Cookie 和 LocalStorage，绕过登录验证。
 
-#### 🚀 `duolingo-xp.py` (自动刷XP)
-一个用于刷经验值（XP）的Python脚本。它会读取由 `duolingo.py` 保存的JWT凭证，然后调用一个第三方API (`api.duolingopro.net`) 来为账户增加指定数量的XP。
+#### 🚀 `duolingo-xp.py` (自动刷 XP)
+读取 `duolingo.py` 保存的 JWT，调用第三方 API 批量增加 XP。
 
 #### 🌐 `api_server.py` (本地服务中心)
-一个本地 Flask Web 服务器。它提供API接口来触发 `duolingo.py`（刷课）和 `duolingo-xp.py`（刷XP）脚本。它包含两个接口：`/run-lesson` 用于开始刷课，`/run-xp` 用于开始刷XP。通过锁机制确保同一时间只有一个任务在执行，保护服务器资源。
+Flask Web 服务器，提供 `/run-lesson` 和 `/run-xp` 接口。通过锁机制确保同一时间只有一个任务执行，防止服务器资源过载。
 
-#### 🛠️ 浏览器脚本工具
-* **`duolingo-helper.js`**: 一个功能全面的JS脚本，设计用于注入到多邻国的答题页面。它会创建一个包含“开始/停止”按钮的控制面板。它通过从页面的React组件中提取正确答案，自动完成点击、输入等操作来解题。此文件的内容被直接嵌入在 `duolingo.py` 中，也可单独使用。
-![image](https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282)
-* **`duolingo-xp.js`**: 一个用于在浏览器开发者控制台手动执行的JS脚本。它从浏览器的Cookie中提取JWT凭证，然后向 `api.duolingopro.net` 服务发送请求来增加XP，功能与 `duolingo-xp.py` 脚本类似。可作为手动刷XP的备用方案。
-* **`show-answer.js`**: 一个书签脚本（bookmarklet）。在多邻国的答题页面运行时，它会从React组件中提取当前题目的正确答案，并将其显示在一个屏幕中央的浮层上。这是一个用于手动显示单题答案的工具。
+<br>
+
+---
+
+## <a id="english-version"></a> English Version
+
+A collection of scripts for automating Duolingo tasks, including completing lessons and farming XP.
+
+### 🚀 Quick Start
+* **Auto-Solve**: To fully automate the current unit, use `duolingo-helper.js`.
+* **Answer Helper**: To display answers while manually solving, use `show-answer.js`.
+* **Instant XP**: To gain XP immediately, use `duolingo-xp.js`.
+* **Server Deployment**: To run 24/7 on a remote server, use the Python scripts in the `server` directory.
+* **Stand-alone**: All scripts in this project can be run independently.
+
+> **⚠️ Disclaimer**
+> 
+> Please note that the **XP farming scripts (`duolingo-xp.py` and `duolingo-xp.js`)** utilize a third-party API (`api.duolingopro.net`) and will send your personal account authentication (JWT token) to their server. The security of this third-party service is not related to this project; use it at your own risk. **All other scripts run entirely locally on your machine and do not send data to any third party.**
+
+---
+
+### 🛠️ JavaScript Utilities
+These scripts can be used directly in your browser without a Python environment.
+
+#### **How to Use:**
+1. **Console Method**: Press `F12` or `Ctrl+Shift+I` on the Duolingo lesson page, go to the `Console` tab, paste the code, and press Enter.
+2. **Bookmarklet Method (For `show-answer.js`)**: Create a new bookmark and paste the script (starting with `javascript:`) into the URL field. Click the bookmark to run.
+
+* **`duolingo-helper.js`**: A comprehensive auto-solver. It creates a UI panel with start/stop buttons. It extracts answers from React components and performs clicking/typing actions automatically.
+<img src="https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282" alt="helper-ui" width="600">
+
+* **`show-answer.js`**: A bookmarklet-style script that extracts the correct answer and displays it in a central overlay. Perfect for manual assistance.
+
+* **`duolingo-xp.js`**: A browser alternative to `duolingo-xp.py` that extracts JWT from cookies and requests XP via the API.
+
+---
+
+### 🤖 Server Python Scripts
+Best for automated loops or deployment on Linux servers.
+
+#### 🤖 `duolingo.py` (Auto-Lesson)
+Uses Playwright to control a headless browser for auto-solving lessons. It extracts and saves the JWT token for the XP script.
+
+**🔑 How to use `duolingo_state.json` (Required for Headless Servers)**
+1. **Local Extraction**: Run Playwright on a local PC with a GUI to log in, then save the state as `duolingo_state.json`.
+2. **Upload**: Place this file in the same directory as `duolingo.py` on your server.
+3. **Auto-Injection**: The script will automatically detect the file and inject Cookies/LocalStorage to bypass login.
+
+#### 🚀 `duolingo-xp.py` (XP Farmer)
+Reads the saved JWT and requests XP through a third-party API.
+
+#### 🌐 `api_server.py` (Local API)
+A Flask server providing `/run-lesson` and `/run-xp` endpoints. Features a lock mechanism to prevent resource overload by ensuring only one task runs at a time.
