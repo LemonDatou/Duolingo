@@ -1,10 +1,10 @@
 (function displayAnswerOnScreen() {
-    // 1. 寻找 React 节点
+    // 1. Find React node
     let typeMarker = document.querySelector('[data-test="challenge-type"]');
     let curr = typeMarker ? typeMarker : document.querySelector('._3yE3H');
     
     if (!curr) {
-        alert("找不到题目节点，请确保在答题界面中！");
+        alert("Could not find challenge node. Please make sure you are in a lesson.");
         return;
     }
 
@@ -14,14 +14,14 @@
     
     let key = Object.keys(curr).find(k => k.startsWith("__reactFiber$"));
     if(!key) {
-        alert("未找到 React 挂载点");
+        alert("Could not find React fiber node.");
         return;
     }
     
     let fiber = curr[key];
     let sol = null;
 
-    // 向上追溯 5 层寻找 currentChallenge
+    // Traverse up 5 levels to find currentChallenge
     for (let i = 0; i < 5; i++) {
         if (fiber?.memoizedProps?.currentChallenge) { sol = fiber.memoizedProps.currentChallenge; break; }
         if (fiber?.pendingProps?.currentChallenge) { sol = fiber.pendingProps.currentChallenge; break; }
@@ -31,34 +31,34 @@
     if (sol) {
         let answerText = "";
         
-        // --- 核心解题解析模块 ---
+        // --- Core Answer Parsing Module ---
         
-        // 1. 翻译/整句填空 (Translate / Form)
+        // 1. Translation / Fill in the blank (Translate / Form)
         if (sol.correctSolutions && sol.correctSolutions.length > 0) {
-            answerText = sol.correctSolutions.join("<br><span style='font-size:16px;opacity:0.8'>或</span><br>");
+            answerText = sol.correctSolutions.join("<br><span style='font-size:16px;opacity:0.8'>or</span><br>");
         } 
-        // 2. 选词填空 (tapComplete 等，通过 correctIndices 数组去 choices 里找词)
+        // 2. Word selection (tapComplete, etc., find words in choices via correctIndices)
         else if (sol.correctIndices && sol.choices) {
             let ansArray = sol.correctIndices.map(idx => {
                 let choice = sol.choices[idx];
                 return choice.text || choice.phrase || choice.val || choice;
             });
-            answerText = ansArray.join(" "); // 拼成完整句子
+            answerText = ansArray.join(" "); // Join to form a complete sentence
         }
-        // 3. 另一种选词填空 (直接给出 correctTokens)
+        // 3. Another word selection type (given correctTokens directly)
         else if (sol.correctTokens && sol.correctTokens.length > 0) {
             answerText = sol.correctTokens.join(" ");
         } 
-        // 4. 单选题 (Multiple Choice)
+        // 4. Multiple Choice
         else if (sol.correctIndex !== undefined && sol.choices) {
             let choice = sol.choices[sol.correctIndex];
-            answerText = choice.text || choice.phrase || ("第 " + (sol.correctIndex + 1) + " 个选项");
+            answerText = choice.text || choice.phrase || ("Option " + (sol.correctIndex + 1));
         } 
-        // 5. 连线匹配题 (Match)
+        // 5. Matching question (Match)
         else if (sol.pairs) {
             answerText = sol.pairs.map(p => `${p.character || p.learningToken}  ➡️  ${p.transliteration || p.fromToken}`).join("<br>");
         }
-        // 6. 单词局部残缺填空 (Type Cloze)
+        // 6. Fill in the missing letters (Type Cloze)
         else if (sol.displayTokens) {
             let blanks = sol.displayTokens.filter(t => t.isBlank || t.damageStart !== undefined);
             if (blanks.length > 0) {
@@ -66,23 +66,23 @@
             }
         }
 
-        // 7. 兜底策略：如果上面全都没匹配上，强制提取关键字段转成文本显示在屏幕上
+        // 7. Fallback strategy: If no match above, force extract key fields and display as text
         if (!answerText) {
             let rawData = {
                 choices: sol.choices?.map(c => c.text || c),
                 answer: sol.correctSolutions || sol.correctTokens || sol.correctIndex || sol.correctIndices
             };
-            answerText = "<span style='font-size:16px; color:#ffeb3b;'>解析格式不匹配，原生数据如下：</span><br><div style='font-size:14px; text-align:left; background:rgba(0,0,0,0.3); padding:10px; margin-top:10px; border-radius:8px; word-break:break-all;'>" + 
+            answerText = "<span style='font-size:16px; color:#ffeb3b;'>Parsing failed, showing raw data:</span><br><div style='font-size:14px; text-align:left; background:rgba(0,0,0,0.3); padding:10px; margin-top:10px; border-radius:8px; word-break:break-all;'>" + 
                          JSON.stringify(rawData).substring(0, 300) + "</div>";
         }
 
-        // --- UI 显示模块 ---
+        // --- UI Display Module ---
         
-        // 移除旧的横幅（如果连点多次）
+        // Remove old banner (if clicked multiple times)
         let oldBanner = document.getElementById('dlp-answer-banner');
         if (oldBanner) oldBanner.remove();
 
-        // 注入新的横幅到屏幕中央
+        // Inject a new banner in the center of the screen
         let banner = document.createElement('div');
         banner.id = 'dlp-answer-banner';
         banner.style.cssText = `
@@ -104,15 +104,15 @@
             min-width: 350px;
             border: 4px solid #1899d6;
         `;
-        // 显示题型和提取到的答案
-        banner.innerHTML = `🕵️‍♂️ <strong>拦截成功 (题型: ${sol.type})</strong><hr style="border-color:rgba(255,255,255,0.4); margin: 15px 0;">${answerText}`;
+        // Display challenge type and the extracted answer
+        banner.innerHTML = `🕵️‍♂️ <strong>Answer Intercepted (Type: ${sol.type})</strong><hr style="border-color:rgba(255,255,255,0.4); margin: 15px 0;">${answerText}`;
         document.body.appendChild(banner);
         
-        // 点击消失，或者 8 秒后自动消失
+        // Click to dismiss, or auto-dismiss after 8 seconds
         banner.onclick = () => banner.remove();
         setTimeout(() => { if(document.body.contains(banner)) banner.remove(); }, 8000);
         
     } else {
-        alert("未能提取到 currentChallenge 数据。");
+        alert("Failed to extract currentChallenge data.");
     }
 })();

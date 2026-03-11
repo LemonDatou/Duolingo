@@ -1,3 +1,16 @@
+from playwright.sync_api import sync_playwright
+import time
+import argparse
+import os
+import json
+
+# Get the directory where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# ==========================================
+# 1. Standalone JS Solver Script (Embedded as a string)
+# ==========================================
+JS_SOLVER_SCRIPT = """
 (async function initUltimateSolver() {
     // ==========================================
     // 1. Visual Logger System with Control Panel
@@ -321,8 +334,9 @@
             let handledPopup = await handlePopupsAndEndScreens();
             if (handledPopup) continue; 
 
+            // JS only needs to check if it's back on the home page, then stop its internal loop.
             if (window.location.pathname === '/learn') {
-                logMsg("🏁 Lesson/Story complete, returned to home screen!", "#34C759");
+                logMsg("🏁 Lesson/Story complete! Waiting for Python to start the next round...", "#34C759");
                 window.stopAutoSolve();
                 break;
             }
@@ -339,5 +353,144 @@
         window.isAutoMode = false;
         logMsg("⏹️ Task has been stopped.", "#FF3B30");
     };
-
 })();
+"""
+
+# ==========================================
+# 2. Python Playwright Control Logic
+# ==========================================
+def run_duolingo_bot(loop_count):
+    TARGET_LESSON_URL = "https://www.duolingo.com/lesson/unit/674/level/1"  
+    
+    # All paths are now relative to the script's location
+    profile_dir = os.path.join(script_dir, "duolingo_profile")
+    state_file = os.path.join(script_dir, "duolingo_state.json")
+    jwt_file = os.path.join(script_dir, "duolingo_jwt.txt")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch_persistent_context(
+            user_data_dir=profile_dir, 
+            headless=True,
+            viewport={"width": 1280, "height": 800}
+        )
+        page = browser.pages[0]
+
+        try:  # Use try...finally to ensure the browser closes properly
+            print("🌐 Opening Duolingo home page...")
+            try:
+                page.goto("https://www.duolingo.com/learn", timeout=60000, wait_until="domcontentloaded")
+            except Exception as e:
+                print(f"⚠️ Home page load timed out: {e}")
+
+            # [Resilience] Check for login state without waiting indefinitely
+            if page.locator('a[data-test="have-account"]').is_visible() or page.url == "https://www.duolingo.com/":
+                print("❌ Login state not detected!")
+                if not os.path.exists(state_file):
+                    print(f"❌ Fatal Error: '{os.path.basename(state_file)}' not found! Please generate it locally and place it in the script directory.")
+                    return
+
+                print(f"📄 Found '{os.path.basename(state_file)}', attempting to inject credentials...")
+                with open(state_file, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                
+                # Inject Cookies
+                if "cookies" in state:
+                    browser.add_cookies(state["cookies"])
+                
+                # Inject LocalStorage (part of Duolingo's state is stored here)
+                if "origins" in state:
+                    page.evaluate(
+                        """(origins) => {
+                            for (const origin of origins) {
+                                if (origin.origin.includes('duolingo.com')) {
+                                    for (const item of origin.localStorage) {
+                                        window.localStorage.setItem(item.name, item.value);
+                                    }
+                                }
+                            }
+                        }""",
+                        state["origins"]
+                    )
+                
+                print("✅ Credentials injected! Refreshing page to apply login state...")
+                page.reload(wait_until="domcontentloaded")
+                time.sleep(3) # Give the page some time to react
+            
+            if page.locator('a[data-test="have-account"]').is_visible() or page.url == "https://www.duolingo.com/":    
+                print("❌ Fatal Error: Login state still not detected after attempting to inject credentials!")
+                print("💡 Please log in manually in a browser first, then run this automation script. Exiting.")
+                return 
+            
+            print(f"✅ Login confirmed. Starting {loop_count} loop(s)...")
+
+            print("🔑 Extracting account JWT...")
+            jwt_token_value = None
+            # Get all cookies from the current context
+            for cookie in browser.cookies():
+                if cookie['name'] == 'jwt_token':
+                    jwt_token_value = cookie['value']
+                    break
+            
+            if jwt_token_value:
+                try:
+                    # Write the JWT to a file in the same directory
+                    with open(jwt_file, "w", encoding="utf-8") as f:
+                        f.write(jwt_token_value)
+                    print(f"✅ JWT successfully extracted and saved to '{os.path.basename(jwt_file)}' for other scripts to use!")
+                except Exception as e:
+                    print(f"⚠️ Failed to save JWT to file: {e}")
+            else:
+                print("⚠️ Could not find 'jwt_token' in cookies. Check if Duolingo has changed its cookie naming.")
+
+            for i in range(1, loop_count + 1):
+                print(f"\n" + "="*40)
+                print(f"🔄 Starting loop {i}/{loop_count}...")
+                print(f"="*40)
+                
+                try:
+                    page.goto(TARGET_LESSON_URL, timeout=60000, wait_until="domcontentloaded")
+                    page.wait_for_selector('._3yE3H, [data-test="challenge-type"], [data-test="story-start"]', timeout=30000)
+                    print("✨ Page content rendered!")
+                except Exception as e:
+                    print(f"⚠️ Page load exception, skipping this loop: {e}")
+                    # [Resilience] If the page fails to load, continue to the next loop
+                    continue
+
+                print("💉 Injecting JS solver engine...")
+                try:
+                    page.evaluate(JS_SOLVER_SCRIPT)
+                    # [Resilience] Don't make Python wait for the async JS.
+                    # If it's just a click trigger, no need to wait for a return value.
+                    page.evaluate("if(typeof window.startAutoSolve === 'function') window.startAutoSolve();")
+                    print("🤖 Bot started, now solving...")
+                except Exception as e:
+                    print(f"❌ JS execution error: {e}")
+                    continue
+
+                # [Resilience] Shorten the wait time. If a normal round takes 2 minutes, 120000ms is a good timeout.
+                try:
+                    print("⏳ Waiting to return to the home page...")
+                    page.wait_for_url("**/learn**", timeout=120000) 
+                    print(f"🎉 Loop {i} finished successfully!")
+                except Exception as e:
+                    print(f"⚠️ Timed out waiting to return to home page (lesson might be stuck or network is slow): {e}")
+                    print("🔄 Force-reloading to start the next round...")
+
+                # Cooldown buffer
+                time.sleep(3)
+
+        except KeyboardInterrupt:
+            print("\n🛑 Script manually interrupted by user (Ctrl+C)!")
+        except Exception as e:
+            print(f"\n💥 An unexpected global error occurred: {e}")
+        finally:
+            print("\n🧹 Cleaning up and closing browser...")
+            browser.close()
+            print("🏁 Script finished.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Duolingo auto-lesson script")
+    parser.add_argument("-c", "--count", type=int, default=1, help="Number of times to run the loop (default: 1)")
+    args = parser.parse_args()
+    
+    run_duolingo_bot(args.count)
