@@ -25,24 +25,23 @@
 ### 🛠️ 浏览器脚本工具 (JS Utilities)
 这些脚本可以直接在浏览器中使用，无需安装 Python 环境。
 
-#### **如何使用：**
-1. **控制台法**：在多邻国答题页面按下 `F12` 或 `Ctrl+Shift+I` 打开开发者工具，切换到 `Console` 选项卡，粘贴代码并回车。
-2. **书签法 (仅限 `show-answer.js`)**：新建浏览器书签，在 URL 处粘贴以 `javascript:` 开头的脚本代码。点击书签即可运行。
+> **使用方法：**
+> 在多邻国答题页面按下 `F12` 或 `Ctrl+Shift+I` 打开开发者工具，切换到 `Console` 选项卡，粘贴代码并回车。
 
 * **`duolingo-helper.js`**: 全功能自动解题脚本。注入后会创建一个包含“开始/停止”按钮的控制面板。它能从 React 组件中提取正确答案，自动完成点击、输入等操作。
 <img src="https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282" alt="helper-ui" width="600">
 
 * **`show-answer.js`**: 辅助答题脚本。运行时会显示当前题目的正确答案，并将其显示在屏幕中央的浮层上，适合辅助手动答题。
 
-* **`duolingo-xp.js`**: 一键获取 XP 脚本。它从 Cookie 中提取 JWT 凭证并发送至第三方服务，立刻获得大量 XP（默认1000），风险自行承担。
+* **`duolingo-xp.js`**: 一键获取 XP 脚本。它从 Cookie 中提取 JWT 凭证并发送至第三方服务，立刻获得大量 XP（默认 1000），风险自行承担。
 
 ---
 
 ### 🤖 服务端 Python 脚本 (Server Scripts)
-适用于需要自动化循环运行或部署在 Linux 服务器上的场景。
+适用于需要循环刷课或部署在 Linux 服务器上运行的场景。
 
 #### 🤖 `duolingo.py` (自动刷课)
-通过 Playwright 控制无头浏览器，全自动登录并刷课。脚本会提取并保存账户的 JWT 凭证供刷分脚本使用。
+通过 Playwright 控制无头浏览器，全自动登录并多次完成同一单元。demo中刷的是某单元练习课，刷指定的单元请替换`TARGET_LESSON_URL`。
 
 **🔑 如何使用 `duolingo_state.json` (无头服务器必备)**
 1. **本地提取**: 在有界面的本地电脑运行 Playwright 登录，保存上下文状态为 `duolingo_state.json`。
@@ -68,7 +67,6 @@ A collection of scripts for automating Duolingo tasks, including completing less
 * **Answer Helper**: To display answers while manually solving, use `show-answer.js`.
 * **Instant XP**: To gain XP immediately, use `duolingo-xp.js`.
 * **Server Deployment**: To run 24/7 on a remote server, use the Python scripts in the `server` directory.
-* **Stand-alone**: All scripts in this project can be run independently.
 
 > **⚠️ Disclaimer**
 > 
@@ -79,16 +77,15 @@ A collection of scripts for automating Duolingo tasks, including completing less
 ### 🛠️ JavaScript Utilities
 These scripts can be used directly in your browser without a Python environment.
 
-#### **How to Use:**
-1. **Console Method**: Press `F12` or `Ctrl+Shift+I` on the Duolingo lesson page, go to the `Console` tab, paste the code, and press Enter.
-2. **Bookmarklet Method (For `show-answer.js`)**: Create a new bookmark and paste the script (starting with `javascript:`) into the URL field. Click the bookmark to run.
+> **How to Use:**
+> Press `F12` or `Ctrl+Shift+I` on the Duolingo lesson page, go to the `Console` tab, paste the code, and press Enter.
 
 * **`duolingo-helper.js`**: A comprehensive auto-solver. It creates a UI panel with start/stop buttons. It extracts answers from React components and performs clicking/typing actions automatically.
 <img src="https://github.com/user-attachments/assets/b5e41e60-dbef-4ebc-8557-4dac8e78d282" alt="helper-ui" width="600">
 
-* **`show-answer.js`**: A bookmarklet-style script that extracts the correct answer and displays it in a central overlay. Perfect for manual assistance.
+* **`show-answer.js`**: An answer helper script. It extracts the correct answer and displays it in a central overlay, perfect for manual assistance.
 
-* **`duolingo-xp.js`**: A browser alternative to `duolingo-xp.py` that extracts JWT from cookies and requests XP via the API.
+* **`duolingo-xp.js`**: One-click XP script. It extracts JWT from cookies and requests XP via the third-party API (default 1000 XP), use at your own risk.
 
 ---
 
