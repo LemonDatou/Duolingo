@@ -7,6 +7,53 @@ import json
 # Get the directory where the script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
+LESSON_READY_SELECTOR = (
+    '._3yE3H, '
+    '[data-test="challenge-type"], '
+    '[data-test="story-start"], '
+    '[data-test="stories-player-continue"], '
+    '[data-test="player-next"], '
+    '[data-test="player-skip"]'
+)
+LOGIN_SELECTOR = 'a[data-test="have-account"]'
+
+
+def locator_is_visible(page, selector):
+    try:
+        return page.locator(selector).first.is_visible(timeout=1000)
+    except Exception:
+        return False
+
+
+def get_page_diagnostics(page):
+    try:
+        title = page.title()
+    except Exception:
+        title = "<unavailable>"
+
+    try:
+        body_text = page.locator("body").inner_text(timeout=2000)
+        body_text = " ".join(body_text.split())[:500]
+    except Exception:
+        body_text = "<unavailable>"
+
+    return f"url={page.url!r}, title={title!r}, body={body_text!r}"
+
+
+def wait_for_lesson_ready(page, timeout_ms=25000):
+    deadline = time.monotonic() + timeout_ms / 1000
+
+    while time.monotonic() < deadline:
+        if locator_is_visible(page, LOGIN_SELECTOR) or page.url == "https://www.duolingo.com/":
+            raise RuntimeError("login page detected while opening lesson")
+
+        if locator_is_visible(page, LESSON_READY_SELECTOR):
+            return True
+
+        time.sleep(0.5)
+
+    return False
+
 # ==========================================
 # 1. Standalone JS Solver Script (Embedded as a string)
 # ==========================================
@@ -387,6 +434,8 @@ def run_duolingo_bot(loop_count):
             headless=True,
             viewport={"width": 1280, "height": 800}
         )
+        browser.set_default_timeout(10000)
+        browser.set_default_navigation_timeout(45000)
         page = browser.pages[0]
 
         try:  # Use try...finally to ensure the browser closes properly
@@ -397,7 +446,7 @@ def run_duolingo_bot(loop_count):
                 print(f"⚠️ Home page load timed out: {e}")
 
             # [Resilience] Check for login state without waiting indefinitely
-            if page.locator('a[data-test="have-account"]').is_visible() or page.url == "https://www.duolingo.com/":
+            if locator_is_visible(page, LOGIN_SELECTOR) or page.url == "https://www.duolingo.com/":
                 print("❌ Login state not detected!")
                 if not os.path.exists(state_file):
                     print(f"❌ Fatal Error: '{os.path.basename(state_file)}' not found! Please generate it locally and place it in the script directory.")
@@ -430,7 +479,7 @@ def run_duolingo_bot(loop_count):
                 page.reload(wait_until="domcontentloaded")
                 time.sleep(3) # Give the page some time to react
             
-            if page.locator('a[data-test="have-account"]').is_visible() or page.url == "https://www.duolingo.com/":    
+            if locator_is_visible(page, LOGIN_SELECTOR) or page.url == "https://www.duolingo.com/":    
                 print("❌ Fatal Error: Login state still not detected after attempting to inject credentials!")
                 print("💡 Please log in manually in a browser first, then run this automation script. Exiting.")
                 return 
@@ -461,21 +510,36 @@ def run_duolingo_bot(loop_count):
                 print(f"🔄 Starting loop {i}/{loop_count}...")
                 print(f"="*40)
                 
-                try:
-                    page.goto(TARGET_LESSON_URL, timeout=60000, wait_until="domcontentloaded")
-                    page.wait_for_selector('._3yE3H, [data-test="challenge-type"], [data-test="story-start"]', timeout=30000)
-                    print("✨ Page content rendered!")
-                except Exception as e:
-                    print(f"⚠️ Page load exception, skipping this loop: {e}")
-                    # [Resilience] If the page fails to load, continue to the next loop
+                lesson_ready = False
+                for attempt in range(1, 3):
+                    try:
+                        page.goto(TARGET_LESSON_URL, timeout=45000, wait_until="domcontentloaded")
+                        if wait_for_lesson_ready(page, timeout_ms=25000):
+                            lesson_ready = True
+                            print("✨ Page content rendered!")
+                            break
+
+                        print(f"⚠️ Lesson did not become ready on attempt {attempt}/2.")
+                        print(f"🔎 Page state: {get_page_diagnostics(page)}")
+                    except Exception as e:
+                        print(f"⚠️ Page load exception on attempt {attempt}/2: {e}")
+                        print(f"🔎 Page state: {get_page_diagnostics(page)}")
+
+                    try:
+                        page.goto("https://www.duolingo.com/learn", timeout=30000, wait_until="domcontentloaded")
+                    except Exception:
+                        pass
+                    time.sleep(2)
+
+                if not lesson_ready:
+                    print("⚠️ Lesson page still not ready after retry; skipping this loop.")
                     continue
 
                 print("💉 Injecting JS solver engine...")
                 try:
                     page.evaluate(JS_SOLVER_SCRIPT)
-                    # [Resilience] Don't make Python wait for the async JS.
-                    # If it's just a click trigger, no need to wait for a return value.
-                    page.evaluate("if(typeof window.startAutoSolve === 'function') window.startAutoSolve();")
+                    # Trigger the async solver without making Playwright wait for it to finish.
+                    page.evaluate("setTimeout(() => { if (typeof window.startAutoSolve === 'function') window.startAutoSolve(); }, 0);")
                     print("🤖 Bot started, now solving...")
                 except Exception as e:
                     print(f"❌ JS execution error: {e}")
