@@ -467,7 +467,7 @@ def run_duolingo_bot(loop_count):
             headless=True,
             viewport={"width": 1280, "height": 800},
             user_agent=BROWSER_USER_AGENT,
-            locale="en-US",
+            locale="zh-CN",
             timezone_id="Asia/Shanghai",
             args=[
                 "--disable-blink-features=AutomationControlled",
