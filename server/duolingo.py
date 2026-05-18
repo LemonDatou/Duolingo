@@ -330,20 +330,34 @@ JS_SOLVER_SCRIPT = """
         window.isAutoMode = true;
         logMsg("▶️ Starting auto-solver...", "#34C759");
 
-        while (window.isAutoMode) {
-            let handledPopup = await handlePopupsAndEndScreens();
-            if (handledPopup) continue; 
+        let attemptsWithoutProgress = 0;
+        const MAX_ATTEMPTS = 50; // Guard against infinite loop
 
-            // JS only needs to check if it's back on the home page, then stop its internal loop.
+        while (window.isAutoMode) {
+            attemptsWithoutProgress++;
+            if (attemptsWithoutProgress > MAX_ATTEMPTS) {
+                logMsg("⚠️ Max attempts reached without progress. Stopping.", "#ff4444");
+                window.stopAutoSolve();
+                break;
+            }
+
+            let handledPopup = await handlePopupsAndEndScreens();
+            if (handledPopup) {
+                attemptsWithoutProgress = 0; // Reset on progress
+                continue; 
+            }
+
             if (window.location.pathname === '/learn') {
-                logMsg("🏁 Lesson/Story complete! Waiting for Python to start the next round...", "#34C759");
+                logMsg("🏁 Lesson/Story complete!", "#34C759");
                 window.stopAutoSolve();
                 break;
             }
 
             await randomDelay(600, 1000); 
             if (window.isAutoMode && window.location.pathname !== '/learn') {
-                await solveOneQuestion();
+                if (await solveOneQuestion()) {
+                    attemptsWithoutProgress = 0; // Reset on successful solve
+                }
             }
         }
     };
@@ -427,8 +441,8 @@ def run_duolingo_bot(loop_count):
             jwt_token_value = None
             # Get all cookies from the current context
             for cookie in browser.cookies():
-                if cookie['name'] == 'jwt_token':
-                    jwt_token_value = cookie['value']
+                if cookie.get('name') == 'jwt_token':
+                    jwt_token_value = cookie.get('value')
                     break
             
             if jwt_token_value:
@@ -468,13 +482,20 @@ def run_duolingo_bot(loop_count):
                     continue
 
                 # [Resilience] Shorten the wait time. If a normal round takes 2 minutes, 120000ms is a good timeout.
+                # [Resilience] Shorten the wait time and handle timeout gracefully.
                 try:
                     print("⏳ Waiting to return to the home page...")
-                    page.wait_for_url("**/learn**", timeout=120000) 
+                    page.wait_for_url("**/learn**", timeout=90000) 
                     print(f"🎉 Loop {i} finished successfully!")
                 except Exception as e:
-                    print(f"⚠️ Timed out waiting to return to home page (lesson might be stuck or network is slow): {e}")
-                    print("🔄 Force-reloading to start the next round...")
+                    print(f"⚠️ Lesson timed out or got stuck: {e}")
+                    # If we time out, we should try to stop the JS solver to be safe
+                    try:
+                        page.evaluate("if(typeof window.stopAutoSolve === 'function') window.stopAutoSolve();")
+                    except:
+                        pass
+                    print("🔄 Reloading to recover state...")
+                    page.reload(wait_until="domcontentloaded")
 
                 # Cooldown buffer
                 time.sleep(3)
