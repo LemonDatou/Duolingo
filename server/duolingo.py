@@ -16,6 +16,11 @@ LESSON_READY_SELECTOR = (
     '[data-test="player-skip"]'
 )
 LOGIN_SELECTOR = 'a[data-test="have-account"]'
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def locator_is_visible(page, selector):
@@ -25,7 +30,7 @@ def locator_is_visible(page, selector):
         return False
 
 
-def get_page_diagnostics(page):
+def get_page_diagnostics(page, recent_events=None):
     try:
         title = page.title()
     except Exception:
@@ -37,7 +42,35 @@ def get_page_diagnostics(page):
     except Exception:
         body_text = "<unavailable>"
 
-    return f"url={page.url!r}, title={title!r}, body={body_text!r}"
+    try:
+        html_length = len(page.content())
+    except Exception:
+        html_length = -1
+
+    event_text = ""
+    if recent_events:
+        event_text = f", recent_events={recent_events[-8:]!r}"
+
+    return f"url={page.url!r}, title={title!r}, html_length={html_length}, body={body_text!r}{event_text}"
+
+
+def setup_page_debugging(page):
+    recent_events = []
+
+    def remember(event):
+        recent_events.append(event)
+        del recent_events[:-20]
+
+    page.on("console", lambda msg: remember(f"console:{msg.type}:{msg.text[:300]}"))
+    page.on("pageerror", lambda err: remember(f"pageerror:{str(err)[:300]}"))
+    page.on("requestfailed", lambda request: remember(
+        f"requestfailed:{request.resource_type}:{request.url[:180]}:{request.failure}"
+    ))
+    page.on("response", lambda response: remember(
+        f"response:{response.status}:{response.url[:180]}"
+    ) if response.request.resource_type == "document" else None)
+
+    return recent_events
 
 
 def wait_for_lesson_ready(page, timeout_ms=25000):
@@ -432,11 +465,23 @@ def run_duolingo_bot(loop_count):
         browser = p.chromium.launch_persistent_context(
             user_data_dir=profile_dir, 
             headless=True,
-            viewport={"width": 1280, "height": 800}
+            viewport={"width": 1280, "height": 800},
+            user_agent=BROWSER_USER_AGENT,
+            locale="en-US",
+            timezone_id="America/New_York",
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ],
         )
         browser.set_default_timeout(10000)
         browser.set_default_navigation_timeout(45000)
         page = browser.pages[0]
+        recent_events = setup_page_debugging(page)
+        page.add_init_script(
+            """Object.defineProperty(navigator, 'webdriver', { get: () => undefined });"""
+        )
 
         try:  # Use try...finally to ensure the browser closes properly
             print("🌐 Opening Duolingo home page...")
@@ -513,17 +558,19 @@ def run_duolingo_bot(loop_count):
                 lesson_ready = False
                 for attempt in range(1, 3):
                     try:
-                        page.goto(TARGET_LESSON_URL, timeout=45000, wait_until="domcontentloaded")
+                        response = page.goto(TARGET_LESSON_URL, timeout=45000, wait_until="domcontentloaded")
+                        if response:
+                            print(f"🌐 Lesson document response: {response.status} {response.url}")
                         if wait_for_lesson_ready(page, timeout_ms=25000):
                             lesson_ready = True
                             print("✨ Page content rendered!")
                             break
 
                         print(f"⚠️ Lesson did not become ready on attempt {attempt}/2.")
-                        print(f"🔎 Page state: {get_page_diagnostics(page)}")
+                        print(f"🔎 Page state: {get_page_diagnostics(page, recent_events)}")
                     except Exception as e:
                         print(f"⚠️ Page load exception on attempt {attempt}/2: {e}")
-                        print(f"🔎 Page state: {get_page_diagnostics(page)}")
+                        print(f"🔎 Page state: {get_page_diagnostics(page, recent_events)}")
 
                     try:
                         page.goto("https://www.duolingo.com/learn", timeout=30000, wait_until="domcontentloaded")
