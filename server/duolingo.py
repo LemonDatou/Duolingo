@@ -6,6 +6,7 @@ import json
 
 # Get the directory where the script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
+TARGET_LESSON_URL = "https://www.duolingo.com/lesson/unit/674/level/1"  
 
 LESSON_READY_SELECTOR = (
     '._3yE3H, '
@@ -249,9 +250,19 @@ JS_SOLVER_SCRIPT = """
     // ==========================================
     // 5. Single Challenge Solver Engine
     // ==========================================
+    function isWaitingForTransition() {
+        const nextBtn = document.querySelector('[data-test="player-next"]');
+        if (!nextBtn) return false;
+
+        const nextText = nextBtn.textContent.trim().toLowerCase();
+        const isContinueButton = nextText.includes('continue') || nextText.includes('继续');
+        return isContinueButton && !isClickable(nextBtn);
+    }
+
     async function solveOneQuestion() {
         const sol = extractData();
         if (!sol) return false;
+        if (isWaitingForTransition()) return false;
 
         logMsg(`⚡ Solving challenge type: [${sol.type}]`, "#ffff00");
 
@@ -454,7 +465,6 @@ JS_SOLVER_SCRIPT = """
 # 2. Python Playwright Control Logic
 # ==========================================
 def run_duolingo_bot(loop_count):
-    TARGET_LESSON_URL = "https://www.duolingo.com/lesson/unit/674/level/1"  
     
     # All paths are now relative to the script's location
     profile_dir = os.path.join(script_dir, "duolingo_profile")

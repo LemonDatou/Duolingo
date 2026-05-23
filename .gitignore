@@ -1,3 +1,5 @@
 duolingo_profile
 duolingo_jwt.txt
 duolingo_state.json
+__pycache__
+duolingo_login_profile
