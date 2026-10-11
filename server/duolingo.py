@@ -194,7 +194,9 @@ JS_SOLVER_SCRIPT = """
     }
 
     function getCleanText(button) {
-        let clone = button.cloneNode(true);
+        // Token labels exclude keyboard shortcuts displayed elsewhere in the button.
+        let label = button.querySelector('[data-test="challenge-tap-token-text"]') || button;
+        let clone = label.cloneNode(true);
         clone.querySelectorAll('rt').forEach(rt => rt.remove()); 
         return clone.textContent.trim().toLowerCase();
     }
@@ -610,6 +612,7 @@ def run_duolingo_bot(loop_count):
                     print(f"🎉 Loop {i} finished successfully!")
                 except Exception as e:
                     print(f"⚠️ Lesson timed out or got stuck: {e}")
+                    print(f"🔎 Page state: {get_page_diagnostics(page, recent_events)}")
                     # If we time out, we should try to stop the JS solver to be safe
                     try:
                         page.evaluate("if(typeof window.stopAutoSolve === 'function') window.stopAutoSolve();")

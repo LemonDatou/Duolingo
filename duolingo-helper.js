@@ -100,7 +100,9 @@
     }
 
     function getCleanText(button) {
-        let clone = button.cloneNode(true);
+        // Token labels exclude keyboard shortcuts displayed elsewhere in the button.
+        let label = button.querySelector('[data-test="challenge-tap-token-text"]') || button;
+        let clone = label.cloneNode(true);
         clone.querySelectorAll('rt').forEach(rt => rt.remove()); 
         return clone.textContent.trim().toLowerCase();
     }
