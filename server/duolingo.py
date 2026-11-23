@@ -31,22 +31,23 @@ def locator_is_visible(page, selector):
         return False
 
 
-def get_page_diagnostics(page, recent_events=None):
+def get_page_diagnostics(page, recent_events=None, timeout_ms=2000):
     try:
-        title = page.title()
+        meta = page.locator(":root").evaluate(
+            "el => ({ title: document.title || '', htmlLength: el.outerHTML.length })",
+            timeout=timeout_ms,
+        )
+        title = meta.get("title", "<unavailable>")
+        html_length = meta.get("htmlLength", -1)
     except Exception:
         title = "<unavailable>"
+        html_length = -1
 
     try:
-        body_text = page.locator("body").inner_text(timeout=2000)
+        body_text = page.locator("body").inner_text(timeout=timeout_ms)
         body_text = " ".join(body_text.split())[:500]
     except Exception:
         body_text = "<unavailable>"
-
-    try:
-        html_length = len(page.content())
-    except Exception:
-        html_length = -1
 
     event_text = ""
     if recent_events:
@@ -612,14 +613,20 @@ def run_duolingo_bot(loop_count):
                     print(f"🎉 Loop {i} finished successfully!")
                 except Exception as e:
                     print(f"⚠️ Lesson timed out or got stuck: {e}")
-                    print(f"🔎 Page state: {get_page_diagnostics(page, recent_events)}")
-                    # If we time out, we should try to stop the JS solver to be safe
+                    # Stop the JS solver first with a bounded timeout so diagnostics/recovery don't hang.
                     try:
-                        page.evaluate("if(typeof window.stopAutoSolve === 'function') window.stopAutoSolve();")
-                    except:
+                        page.locator(":root").evaluate(
+                            "() => { if (typeof window.stopAutoSolve === 'function') window.stopAutoSolve(); }",
+                            timeout=2000,
+                        )
+                    except Exception:
                         pass
+                    print(f"🔎 Page state: {get_page_diagnostics(page, recent_events)}")
                     print("🔄 Reloading to recover state...")
-                    page.reload(wait_until="domcontentloaded")
+                    try:
+                        page.reload(timeout=30000, wait_until="domcontentloaded")
+                    except Exception as reload_err:
+                        print(f"⚠️ Reload recovery failed: {reload_err}")
 
                 # Cooldown buffer
                 time.sleep(3)
